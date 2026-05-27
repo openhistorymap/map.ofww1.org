@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-05-27T08:30:01+00:00",
+  "epoch": "1914-01-01",
+  "armistice_day": 1775,
+  "totals": {
+    "features": 1362,
+    "attacks": 1362,
+    "battles": 0,
+    "memorials": 0
+  },
+  "buckets": [
+    {
+      "key": 1915,
+      "year": 1915,
+      "file": "buckets/1915.geojson",
+      "count": 52,
+      "stale": false
+    },
+    {
+      "key": 1916,
+      "year": 1916,
+      "file": "buckets/1916.geojson",
+      "count": 60,
+      "stale": false
+    },
+    {
+      "key": 1917,
+      "year": 1917,
+      "file": "buckets/1917.geojson",
+      "count": 207,
+      "stale": false
+    },
+    {
+      "key": 1918,
+      "year": 1918,
+      "file": "buckets/1918.geojson",
+      "count": 1043,
+      "stale": false
+    }
+  ],
+  "memorials": {
+    "file": "memorials.geojson",
+    "count": 0
+  },
+  "sources": {
+    "thor": {
+      "status": "ok",
+      "count": 1362,
+      "elapsed_seconds": 0.0,
+      "kind": "attack"
+    },
+    "wd_battles": {
+      "status": "disabled",
+      "count": 0,
+      "kind": "battle"
+    },
+    "wd_german_raids": {
+      "status": "disabled",
+      "count": 0,
+      "kind": "attack"
+    },
+    "wd_memorials": {
+      "status": "disabled",
+      "count": 0,
+      "kind": "memorial"
+    },
+    "osm_memorials": {
+      "status": "disabled",
+      "count": 0,
+      "kind": "memorial"
+    }
+  }
+}

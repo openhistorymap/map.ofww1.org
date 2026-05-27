@@ -1,0 +1,94 @@
+name: Harvest + deploy
+
+# Manual only. WWI events are a closed historical record — Wikidata and OSM
+# gain new WWI content rarely, so a monthly cron would be pure noise. Run
+# this workflow by hand when meaningful upstream changes land, or when the
+# harvester itself changes.
+on:
+  workflow_dispatch:
+    inputs:
+      enable:
+        description: "Comma-separated source whitelist (e.g. thor,wd_battles). Leave blank to run every registered source."
+        required: false
+        default: ""
+      disable:
+        description: "Comma-separated source blacklist (e.g. osm_memorials). Leave blank to disable nothing."
+        required: false
+        default: ""
+      countries:
+        description: "OSM country whitelist for osm_memorials (e.g. DE,FR). Leave blank to sweep all."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ww1map-deploy
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: harvester/requirements.txt
+
+      - name: Install harvester deps
+        run: pip install -r harvester/requirements.txt
+
+      - name: Run harvester
+        env:
+          W1M_ENABLE: ${{ github.event.inputs.enable }}
+          W1M_DISABLE: ${{ github.event.inputs.disable }}
+          W1M_COUNTRIES: ${{ github.event.inputs.countries }}
+        run: python -m harvester
+
+      - name: Commit data changes
+        run: |
+          git config user.name "ww1map-bot"
+          git config user.email "ww1map-bot@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "no data changes."
+          else
+            git commit -m "data: refresh $(date -u +%Y-%m-%d) (manual run)"
+            git push
+          fi
+
+  deploy:
+    needs: [harvest]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Stage site
+        # Web files go to _site/ root; generated data to _site/data/. The
+        # CNAME file at repo root publishes the custom domain.
+        run: |
+          mkdir -p _site/data
+          cp -r web/. _site/
+          if [ -d data ]; then cp -r data/. _site/data/; fi
+          if [ -f CNAME ]; then cp CNAME _site/CNAME; fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
