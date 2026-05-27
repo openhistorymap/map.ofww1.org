@@ -24,7 +24,11 @@ Sibling project to [`openartmap`](../openartmap/) and [`openculturemap`](../open
     - `W1M_COUNTRIES=DE,FR`         — restrict the OSM Overpass country sweep
 - `web/` — Static MapLibre frontend. **Day-snapshot slider** (1914-07-28 → 1918-11-11) with a play button is the hero control. Kind toggles: *attacks · battles · memorials*. No build step; deployed as-is to Pages.
 - `data/` — Generated. Treat as machine-owned output; do not hand-edit.
-- `.github/workflows/harvest.yml` — **manual dispatch only**, no cron. WWI events and battles are essentially a closed historical record; new ones are almost never documented, so a monthly cron is pure noise. Run by hand when Wikidata or OSM has gained meaningful new WWI content, or when the harvester itself changes.
+- `.github/workflows/` — **two independent workflows**, both manual-dispatch:
+  - `harvest.yml` refreshes `data/` from the configured sources and commits the result back to `main`. Does NOT publish to Pages.
+  - `deploy.yml` publishes the current contents of `web/` + `data/` (from the latest commit on `main`) to GitHub Pages. Does NOT run the harvester.
+
+  Independence is intentional — re-running the harvester should not auto-push potentially-broken data to the live site, and a frontend tweak should not require a full Wikidata sweep to ship. Typical sequences: *frontend change → push → run Deploy*. *Data refresh → run Harvest → eyeball the manifest summary → run Deploy*. WWI events are a closed historical record so there is no cron on either workflow.
 
 ## Data model
 
@@ -47,7 +51,7 @@ This is more precise than openartmap's year-bucketing because WWI fits in a 4-ye
 - WDQS and Overpass `User-Agent` headers carry a contact URL — required by their etiquette. Don't strip it.
 - On total failure of a source, the harvester keeps the prior on-disk bucket untouched and marks the source `stale` in the manifest.
 - GitHub Pages serves the site at `https://map.ofww1.org` via a custom-domain CNAME. The Pages build source is "GitHub Actions"; the workflow's deploy job uses `actions/deploy-pages@v4`.
-- The harvester is **not on a schedule**. Trigger `harvest.yml` manually after meaningful upstream data changes; otherwise the existing `data/` committed to `main` is the source of truth.
+- The harvester is **not on a schedule**. Trigger `harvest.yml` manually after meaningful upstream data changes; otherwise the existing `data/` committed to `main` is the source of truth. `deploy.yml` is also manual — running Harvest will not publish; you must run Deploy after.
 - Frontend uses **relative** paths for `data/manifest.json`, `style.css`, `app.js` so the custom domain and any `/staging/`-style subpath both work without a base href.
 
 ## THOR CSV notes

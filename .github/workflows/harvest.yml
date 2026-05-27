@@ -1,9 +1,13 @@
-name: Harvest + deploy
+name: Harvest
 
-# Manual only. WWI events are a closed historical record — Wikidata and OSM
-# gain new WWI content rarely, so a monthly cron would be pure noise. Run
-# this workflow by hand when meaningful upstream changes land, or when the
-# harvester itself changes.
+# Refreshes `data/` from the configured sources and commits the result back
+# to `main`. Does NOT publish to Pages — run the Deploy workflow separately
+# (manually) once you're happy with the refreshed data. Independence between
+# harvest and deploy is intentional: re-running the harvester should not
+# automatically push potentially-broken data to the live site.
+#
+# WWI events are a closed historical record, so this is manual-only — no cron.
+
 on:
   workflow_dispatch:
     inputs:
@@ -22,11 +26,9 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
-  group: ww1map-deploy
+  group: ww1map-harvest
   cancel-in-progress: false
 
 jobs:
@@ -60,35 +62,18 @@ jobs:
           if git diff --cached --quiet; then
             echo "no data changes."
           else
-            git commit -m "data: refresh $(date -u +%Y-%m-%d) (manual run)"
+            git commit -m "data: refresh $(date -u +%Y-%m-%d) (manual harvest)"
             git push
           fi
 
-  deploy:
-    needs: [harvest]
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Stage site
-        # Web files go to _site/ root; generated data to _site/data/. The
-        # CNAME file at repo root publishes the custom domain.
+      - name: Summary
+        if: always()
         run: |
-          mkdir -p _site/data
-          cp -r web/. _site/
-          if [ -d data ]; then cp -r data/. _site/data/; fi
-          if [ -f CNAME ]; then cp CNAME _site/CNAME; fi
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - id: deploy
-        uses: actions/deploy-pages@v4
+          echo "### Harvest summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f data/manifest.json ]; then
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat data/manifest.json | python -c "import json,sys; m=json.load(sys.stdin); print(json.dumps({'generated_at': m.get('generated_at'), 'totals': m.get('totals'), 'sources': m.get('sources')}, indent=2))" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run the **Deploy** workflow when ready to publish these changes." >> $GITHUB_STEP_SUMMARY

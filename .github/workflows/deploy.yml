@@ -1,0 +1,52 @@
+name: Deploy
+
+# Publishes the current contents of `web/` and `data/` (from the latest
+# commit on `main`) to GitHub Pages. Does NOT run the harvester — run the
+# Harvest workflow first if you want refreshed data. Independence between
+# harvest and deploy is intentional.
+#
+# Typical workflows:
+#   - Frontend / style change → push to main → run Deploy.
+#   - Data refresh           → run Harvest (commits to main) → run Deploy.
+#   - Both                   → push code, run Harvest, run Deploy.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ww1map-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Stage site
+        # Web files go to _site/ root; generated data to _site/data/. The
+        # CNAME file at repo root publishes the custom domain.
+        run: |
+          mkdir -p _site/data
+          cp -r web/. _site/
+          if [ -d data ]; then cp -r data/. _site/data/; fi
+          if [ -f CNAME ]; then cp CNAME _site/CNAME; fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
